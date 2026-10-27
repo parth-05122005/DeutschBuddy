@@ -141,6 +141,7 @@ All settings can be changed in `.env`:
 | Registration number | 23BDS0043 |
 | Course | German (B.Tech final-year project) |
 | Faculty | Dhananjay Kumar |
+| Repository | https://github.com/parth-05122005/DeutschBuddy |
 
 ## Ideas for extension
 
