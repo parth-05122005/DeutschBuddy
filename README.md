@@ -125,37 +125,31 @@ The conference paper compares four configurations on 180 German grammar question
 
 Each benchmark line holds the question, its topic, CEFR level (A1/A2/B1), language (en/de/mixed), the gold knowledge-base heading(s) as `file.md#Heading`, and a reference answer. 160 questions are in scope; 20 cover topics the knowledge base does not contain (Konjunktiv II, passive, relative clauses, reflexive verbs, n-declension).
 
-**Before running:** have a German teacher check the reference answers in the benchmark file.
+Run the steps in order (each one can be stopped and restarted; finished work is skipped, and a run stops cleanly on a daily quota or after five failures in a row):
 
-Run the steps in order (each one can be stopped and restarted; finished work is skipped):
-
-1. Generate 720 answers (180 questions × 4 configurations). `--delay` keeps within the free-tier rate limit; a full run takes about 1.5 hours.
+1. Generate 720 answers (180 questions × 4 configurations) with Gemini 3.5 Flash-Lite. `--delay` keeps within the free-tier rate limit.
 
    ```bash
-   python experiments/run.py --delay 7
+   python experiments/run.py --delay 4
    ```
 
    Try it on a few questions first with `--ids CAS-04 TNS-05 OOS-01`.
 
-2. Judge faithfulness and citation precision with an LLM, and create `judge_check_sample.csv` for a human to verify 20% of the verdicts.
+2. Rate the 640 in-scope answers with the LLM judge (Gemini 3.1 Flash-Lite, a different model): correctness against the reference answer, level fit, faithfulness and citation precision, in one call per answer.
 
    ```bash
-   python experiments/judge.py --delay 7
+   python experiments/judge.py --delay 4
    ```
 
-3. Create the blind rating sheets for the two raters. Each rater fills `correctness` (correct / partly / incorrect) and `level_fit` (suitable / too_difficult / too_simple) in their own CSV. Keep `rating_key.csv` away from the raters.
-
-   ```bash
-   python experiments/sheets.py
-   ```
-
-4. After rating, put the agreed labels for disagreements in `ratings_final.csv` (same columns), then compute every table of the paper into `experiments/results/tables.md`:
+3. Compute every table of the paper into `experiments/results/tables.md`:
 
    ```bash
    python experiments/score.py
    ```
 
-All outputs go to `experiments/results/`. The tests in `tests/test_experiments.py` check the benchmark (180 questions, Table I counts, every gold heading exists in the knowledge base) and every script with a fake model.
+Optional: `python experiments/sheets.py` creates blind rating sheets for human raters; when they are filled in, `score.py` uses the human labels instead of the judge's.
+
+The results of the published run are in `experiments/results/` (`answers.jsonl`, `judgments.jsonl`, `tables.md`). The tests in `tests/test_experiments.py` check the benchmark (180 questions, Table I counts, every gold heading exists in the knowledge base) and every script with a fake model.
 
 ## Configuration
 

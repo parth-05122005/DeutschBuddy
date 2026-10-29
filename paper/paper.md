@@ -1,11 +1,11 @@
 # Does Retrieval Make LLM Grammar Explanations Trustworthy? A Benchmark Study for German as a Foreign Language
 
-@author Parth Khandelwal | [Department] | [Institution] | [City], India | [college email]
-@author Dhananjay Kumar | [Department] | [Institution] | [City], India | [email]
+@author Parth Khandelwal | Vellore Institute of Technology | Vellore, India | parth.khandelwal2023@vitstudent.ac.in
+@author Dhananjay Kumar | Vellore Institute of Technology | Vellore, India
 
 ## Abstract
 
-Large language models (LLMs) can explain grammar on demand, but their explanations are often incomplete or wrong, and learners cannot check them. We study whether retrieval-augmented generation (RAG) over a small, teacher-curated grammar knowledge base makes LLM explanations more trustworthy for learners of German as a foreign language. We introduce DaF-GQA, a benchmark of 180 learner questions at CEFR levels A1–B1, each linked to the knowledge-base section that answers it, including 20 questions deliberately outside the knowledge base. Using DeutschBuddy, an open-source RAG tutor built on Gemini 3.5 Flash-Lite, multilingual Gemini embeddings and ChromaDB, we compare four configurations: closed-book generation, RAG, RAG with CEFR level control, and RAG with level control and an abstention rule. An LLM judge, validated against a German instructor on a blind sample, rates correctness against teacher-checked reference answers and level fit; we also measure retrieval hit rate, faithfulness and citation precision. The closed-book model was already strong: 95.0% of its explanations were fully correct, and retrieval raised this to 98.1%, a difference that was not statistically significant. Retrieval's clearer benefit was verifiability: grounded answers had a faithfulness of 0.987, 99.5% of their citations pointed to a supporting passage, and they were 45% shorter. CEFR level control did not weaken grounding, and a one-sentence abstention rule raised the share of flagged out-of-scope questions from 10% to 90% with one false refusal among 160 in-scope questions. We release the benchmark, code and annotations.
+Large language models (LLMs) can explain grammar on demand, but their explanations are often incomplete or wrong, and learners cannot check them. We study whether retrieval-augmented generation (RAG) over a small, curated grammar knowledge base makes LLM explanations more trustworthy for learners of German as a foreign language. We introduce DaF-GQA, a benchmark of 180 learner questions at CEFR levels A1–B1, each linked to the knowledge-base section that answers it, including 20 questions deliberately outside the knowledge base. Using DeutschBuddy, an open-source RAG tutor built on Gemini 3.5 Flash-Lite, multilingual Gemini embeddings and ChromaDB, we compare four configurations: closed-book generation, RAG, RAG with CEFR level control, and RAG with level control and an abstention rule. An LLM judge rates correctness against reference answers and level fit; we also measure retrieval hit rate, faithfulness and citation precision. The closed-book model was already strong: 95.0% of its explanations were fully correct, and retrieval raised this to 98.1%, a difference that was not statistically significant. Retrieval's clearer benefit was verifiability: grounded answers had a faithfulness of 0.987, 99.5% of their citations pointed to a supporting passage, and they were 45% shorter. CEFR level control did not weaken grounding, and a one-sentence abstention rule raised the share of flagged out-of-scope questions from 10% to 90% with one false refusal among 160 in-scope questions. We release the benchmark, code and annotations.
 
 ## Index Terms
 
@@ -29,9 +29,9 @@ We address these gaps with three research questions:
 
 Our contributions are:
 
-1. **DaF-GQA**, a benchmark of 180 German grammar questions at A1–B1 with gold knowledge-base sections and teacher-checked reference answers, including 20 out-of-scope questions.
+1. **DaF-GQA**, a benchmark of 180 German grammar questions at A1–B1 with gold knowledge-base sections and reference answers, including 20 out-of-scope questions.
 2. **DeutschBuddy**, an open-source RAG tutor for German with heading-aware chunking, cross-lingual retrieval and cited, level-adapted answers.
-3. A **controlled comparison of four configurations** on correctness and level fit, rated by an LLM judge whose agreement with a German instructor we report, plus measures of retrieval, faithfulness and citation precision.
+3. A **controlled comparison of four configurations** on correctness and level fit, rated by an LLM judge, plus measures of retrieval, faithfulness and citation precision.
 
 ## II. Related Work
 
@@ -62,7 +62,7 @@ Table: TABLE I | Comparison with Prior Work
 | Šekrst and Kovačić [4] | English | No | No | No | Yes |
 | Malik et al. [7], Jin et al. [8] | English, Japanese | No | Yes | No | Varies |
 | RAGAS [11] | General | Yes | No | No | No |
-| **This work** | **German** | **Yes** | **Yes** | **Yes** | **Sample** |
+| **This work** | **German** | **Yes** | **Yes** | **Yes** | **No (LLM judge)** |
 
 ## III. System: DeutschBuddy
 
@@ -88,7 +88,7 @@ The system is implemented in Python with Streamlit and is released as open sourc
 
 ### A. The DaF-GQA Benchmark
 
-DaF-GQA (German as a Foreign Language Grammar Question Answering) contains 180 questions written in the form learners ask them. 160 in-scope questions are answerable from the grammar knowledge base; each is labelled with its CEFR level, its topic, the gold knowledge-base section(s) that answer it, and a reference answer checked by the second author, a German instructor. 20 out-of-scope questions cover topics deliberately absent from the knowledge base (Konjunktiv II, passive voice, relative clauses, reflexive verbs, n-declension).
+DaF-GQA (German as a Foreign Language Grammar Question Answering) contains 180 questions written in the form learners ask them. 160 in-scope questions are answerable from the grammar knowledge base; each is labelled with its CEFR level, its topic, the gold knowledge-base section(s) that answer it, and a short reference answer written from the knowledge base. 20 out-of-scope questions cover topics deliberately absent from the knowledge base (Konjunktiv II, passive voice, relative clauses, reflexive verbs, n-declension).
 
 Table: TABLE II | Composition of DaF-GQA by Topic and CEFR Level
 | Topic | A1 | A2 | B1 | Total |
@@ -127,9 +127,9 @@ C1 vs C2 answers RQ1, C2 vs C3 answers RQ2, and C3 vs C4 answers RQ3.
 - **Level fit** (RQ2): the judge rates whether an explanation is *suitable*, *too difficult* or *too simple* for the question's CEFR level.
 - **Abstention** (RQ3): precision and recall of flagging out-of-scope questions, and the false-abstention rate on in-scope questions.
 
-### D. LLM Judge and Its Validation
+### D. LLM Judge
 
-All judgments are made by Gemini 3.1 Flash-Lite at temperature 0, a different model from the one being evaluated, with a fixed rubric and a schema-constrained output. For each of the 640 in-scope answers (160 questions × 4 configurations) the judge sees the question, its CEFR level, the teacher-checked reference answer, the retrieved passages (C2–C4) and the answer, and returns correctness, level fit, the answer's claims and its citations in one call. To validate the judge, the second author rated a blind random sample of 50 answers without seeing the judge's labels; agreement is reported as Cohen's κ [16]. Differences in the proportion of correct answers between paired configurations are tested with McNemar's test [17] at α = 0.05.
+All judgments are made by Gemini 3.1 Flash-Lite at temperature 0, a different model from the one being evaluated, with a fixed rubric and a schema-constrained output. For each of the 640 in-scope answers (160 questions × 4 configurations) the judge sees the question, its CEFR level, the reference answer, the retrieved passages (C2–C4) and the answer, and returns correctness, level fit, the answer's claims and its citations in one call. Differences in the proportion of correct answers between paired configurations are tested with McNemar's test [16] at α = 0.05.
 
 ## V. Results
 
@@ -142,8 +142,6 @@ Table: TABLE IV | Results on the 160 In-Scope Questions
 | C2 RAG | 98.1 | 1.9 | 0.0 | 0.987 | 99.5 | 100 |
 | C3 RAG + level | 99.4 | 0.6 | 0.0 | 0.987 | 99.8 | 100 |
 | C4 RAG + level + abstain | 96.9 | 3.1 | 0.0 | 0.988 | 99.3 | 100 |
-
-Judge–instructor agreement on the 50-answer sample: correctness κ = [XX], level fit κ = [XX].
 
 No answer in any configuration was rated incorrect. Retrieval raised the share of fully correct explanations from 95.0% (C1) to 98.1% (C2): 8 questions improved and 3 got worse, which is not significant (McNemar exact p = 0.23). The closed-book errors were slips inside otherwise sound explanations: a wrongly conjugated example (*Ich könne* for *ich kann*), a non-existent accusative form (*keins*), an answer that first gave the wrong article and then corrected itself, and a list of accusative prepositions with an ungrammatical example. Errors that remained with retrieval were additions not found in the passages, such as a wrong gender for *der Tisch* (written *das Tisch*) and an invented etymology for *groß*. Grounded answers were also shorter: 111 words on average in C2 against 201 in C1.
 
@@ -161,7 +159,7 @@ A gold section was among the five retrieved chunks for every in-scope question, 
 
 ### C. Level Control vs Grounding (RQ2)
 
-Adding the CEFR instruction did not weaken grounding: faithfulness stayed at 0.987 and citation precision moved from 99.5% to 99.8%, while fully correct answers rose slightly from 98.1% to 99.4% (p = 0.63). Across the three grounded configurations, 22 of 480 answers contained at least one claim the judge could not find in the passages. The judge rated every answer in every configuration as suitable for its level, including closed-book answers that did not receive the learner's level, so level fit as measured here could not distinguish the configurations. Whether this reflects lenient judging or genuinely accessible answers is a question for the instructor's spot-check.
+Adding the CEFR instruction did not weaken grounding: faithfulness stayed at 0.987 and citation precision moved from 99.5% to 99.8%, while fully correct answers rose slightly from 98.1% to 99.4% (p = 0.63). Across the three grounded configurations, 22 of 480 answers contained at least one claim the judge could not find in the passages. The judge rated every answer in every configuration as suitable for its level, including closed-book answers that did not receive the learner's level, so level fit as measured here could not distinguish the configurations. Whether this reflects lenient judging or genuinely accessible answers would need human raters to decide.
 
 ### D. Abstention (RQ3)
 
@@ -177,19 +175,19 @@ Without an explicit rule, the tutor rarely signalled that a question lay outside
 
 ## VI. Discussion and Limitations
 
-**What retrieval changes.** For core A1–B1 grammar, a current LLM is already right most of the time without retrieval, so the correctness gain is small and not significant on 160 questions. What retrieval adds is a way to check the answer: almost every claim can be traced to a teacher's note, and the citation shows which one. For a learner who cannot judge a grammar explanation alone, this matters more than a few points of accuracy. The errors that remained with retrieval were content the model added beyond the passages, which suggests instructing the model to stay within them more strictly.
+**What retrieval changes.** For core A1–B1 grammar, a current LLM is already right most of the time without retrieval, so the correctness gain is small and not significant on 160 questions. What retrieval adds is a way to check the answer: almost every claim can be traced to a note in the knowledge base, and the citation shows which one. For a learner who cannot judge a grammar explanation alone, this matters more than a few points of accuracy. The errors that remained with retrieval were content the model added beyond the passages, which suggests instructing the model to stay within them more strictly.
 
 **Level control and abstention.** Asking for the learner's level did not cost grounding. Signalling the limits of the knowledge base did not happen by default and required an explicit rule, which worked well at almost no cost to in-scope answers.
 
-**Implications for teaching.** Showing learners the passage behind each explanation turns the tutor into something a teacher can audit. A small knowledge base written by the teacher defines what the tutor knows, so the curriculum, not the model's pretraining, sets the content.
+**Implications for teaching.** Showing learners the passage behind each explanation turns the tutor into something a teacher can audit. A small knowledge base that a teacher writes or reviews defines what the tutor knows, so the curriculum, not the model's pretraining, sets the content.
 
-**Limitations.** The knowledge base covers six grammar topics at A1–B1 and the benchmark has 180 questions, so results may not hold for advanced grammar or larger collections. All configurations use one model, Gemini 3.5 Flash-Lite; other LLMs may benefit more or less from retrieval. Questions are written by the authors in learner style rather than collected from real learners. Results are near the ceiling: correctness is high in every configuration and retrieval found the gold section for every question, which limits statistical power; harder grammar and a larger knowledge base are needed to separate the configurations. All ratings come from one LLM judge, validated against a single instructor on 50 answers. The judge rated every answer as suitable for its level, so level fit needs human or finer-grained measurement, and a judge may share blind spots with the model it evaluates.
+**Limitations.** The knowledge base covers six grammar topics at A1–B1 and the benchmark has 180 questions, so results may not hold for advanced grammar or larger collections. All configurations use one model, Gemini 3.5 Flash-Lite; other LLMs may benefit more or less from retrieval. Questions are written by the authors in learner style rather than collected from real learners. Results are near the ceiling: correctness is high in every configuration and retrieval found the gold section for every question, which limits statistical power; harder grammar and a larger knowledge base are needed to separate the configurations. All ratings come from one LLM judge and were not validated against human raters. The judge rated every answer as suitable for its level, so level fit needs human or finer-grained measurement, and a judge may share blind spots with the model it evaluates.
 
 ## VII. Conclusion and Future Work
 
-We asked whether retrieving a teacher-curated grammar knowledge base makes LLM grammar explanations trustworthy for learners of German. We introduced the DaF-GQA benchmark and the open-source DeutschBuddy tutor, and compared closed-book generation with three retrieval-based configurations. Retrieval raised fully correct explanations from 95.0% to 98.1%, a gain that was not significant because the closed-book model was already strong; its main benefit was that answers became shorter, grounded (faithfulness 0.987) and correctly cited (99.5%). CEFR level control did not weaken grounding, and a one-sentence abstention rule raised the share of flagged out-of-scope questions from 10% to 90%. For grammar tutoring, the value of RAG lies less in making a strong model more accurate than in making its explanations checkable.
+We asked whether retrieving a curated grammar knowledge base makes LLM grammar explanations trustworthy for learners of German. We introduced the DaF-GQA benchmark and the open-source DeutschBuddy tutor, and compared closed-book generation with three retrieval-based configurations. Retrieval raised fully correct explanations from 95.0% to 98.1%, a gain that was not significant because the closed-book model was already strong; its main benefit was that answers became shorter, grounded (faithfulness 0.987) and correctly cited (99.5%). CEFR level control did not weaken grounding, and a one-sentence abstention rule raised the share of flagged out-of-scope questions from 10% to 90%. For grammar tutoring, the value of RAG lies less in making a strong model more accurate than in making its explanations checkable.
 
-Future work will (i) collect real learner questions from German courses, (ii) extend the approach to explaining errors in learner writing using the MERLIN corpus of CEFR-rated German exam texts [18], (iii) test hybrid keyword-and-vector retrieval for mixed-language questions, and (iv) measure learning gains in a classroom study.
+Future work will (i) collect real learner questions from German courses, (ii) extend the approach to explaining errors in learner writing using the MERLIN corpus of CEFR-rated German exam texts [17], (iii) test hybrid keyword-and-vector retrieval for mixed-language questions, (iv) validate the LLM judge against human raters, and (v) measure learning gains in a classroom study.
 
 ## References
 
@@ -208,6 +206,5 @@ Future work will (i) collect real learner questions from German courses, (ii) ex
 13. M. Li, Y. Wang, and X. Yang, "Can generative AI chatbots promote second language acquisition? A meta-analysis," *Journal of Computer Assisted Learning*, 2025, doi: 10.1111/jcal.70060.
 14. J. Lee *et al.*, "Gemini Embedding: Generalizable embeddings from Gemini," arXiv:2503.07891, 2025.
 15. Y. A. Malkov and D. A. Yashunin, "Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs," *IEEE Trans. Pattern Anal. Mach. Intell.*, vol. 42, no. 4, 2020.
-16. J. Cohen, "A coefficient of agreement for nominal scales," *Educational and Psychological Measurement*, vol. 20, no. 1, 1960.
-17. Q. McNemar, "Note on the sampling error of the difference between correlated proportions or percentages," *Psychometrika*, vol. 12, no. 2, 1947.
-18. A. Boyd *et al.*, "The MERLIN corpus: Learner language and the CEFR," in *Proc. LREC*, 2014.
+16. Q. McNemar, "Note on the sampling error of the difference between correlated proportions or percentages," *Psychometrika*, vol. 12, no. 2, 1947.
+17. A. Boyd *et al.*, "The MERLIN corpus: Learner language and the CEFR," in *Proc. LREC*, 2014.

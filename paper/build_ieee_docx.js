@@ -201,7 +201,7 @@ function parse(markdown) {
     borders: { top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } },
     children: a.map((part, k) => new Paragraph({ alignment: AlignmentType.CENTER,
-      children: runs(part, k === 0 ? { size: 22 } : { size: 20, italics: k < a.length - 1 }) })),
+      children: runs(part, k === 0 ? { size: 22 } : { size: 20, italics: !part.includes("@") }) })),
   });
   const fullWidth = PAGE.size.width - PAGE.margin.left - PAGE.margin.right;
   front.push(new Table({ width: { size: fullWidth, type: WidthType.DXA },
