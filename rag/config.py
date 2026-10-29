@@ -13,7 +13,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 @dataclass
 class Settings:
     api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY", ""))
-    chat_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+    chat_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"))
     embed_model: str = field(default_factory=lambda: os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001"))
     embed_dim: int = int(os.getenv("EMBED_DIM", "768"))
 

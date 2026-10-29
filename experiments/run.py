@@ -6,6 +6,7 @@ simply start it again.
 """
 
 import argparse
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,8 +20,16 @@ from rag.prompts import ABSTAIN_MARKER
 TEMPERATURE = 0.2
 
 
+# Without the abstention rule (C2, C3) the model may still decline in its own words
+REFUSAL = re.compile(
+    r"(passages?|context|knowledge base|notes)[^.]{0,60}(do(es)? not|don't|doesn't) (contain|cover|include|mention)"
+    r"|not (covered|included|mentioned) in the (provided )?(passages|context)"
+    r"|(passagen|kontext)[^.]{0,60}(enthalten|enthält) keine", re.IGNORECASE)
+
+
 def is_abstention(answer: str) -> bool:
-    return ABSTAIN_MARKER.lower() in answer[:200].lower()
+    opening = answer[:300]
+    return ABSTAIN_MARKER.lower() in opening.lower() or bool(REFUSAL.search(opening))
 
 
 def answer_one(engine, question: dict, config_id: str) -> dict:
@@ -58,7 +67,10 @@ def run_experiments(engine, questions: list[dict], configs: list[str], out_path:
         try:
             record = answer_one(engine, question, config_id)
         except Exception as exc:  # keep going; the pair is retried on the next run
-            log(f"[{i}/{len(todo)}] {question['id']} {config_id} FAILED: {exc}")
+            log(f"[{i}/{len(todo)}] {question['id']} {config_id} FAILED: {str(exc)[:300]}")
+            if "PerDay" in str(exc):
+                log("Daily quota reached. Run the same command again tomorrow to continue.")
+                break
             continue
         append_jsonl(out_path, record)
         log(f"[{i}/{len(todo)}] {question['id']} {config_id} ok ({record['latency_total_s']} s)")

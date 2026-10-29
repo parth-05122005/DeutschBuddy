@@ -1,0 +1,11 @@
+{
+  "name": "deutschbuddy-paper",
+  "private": true,
+  "description": "Builds the IEEE-format Word file of the DeutschBuddy conference paper",
+  "scripts": {
+    "build": "node build_ieee_docx.js"
+  },
+  "dependencies": {
+    "docx": "9.5.1"
+  }
+}

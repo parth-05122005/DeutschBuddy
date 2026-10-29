@@ -27,7 +27,7 @@ flowchart LR
         Q[User question] --> E[Gemini embedding<br/>RETRIEVAL_QUERY]
         E --> D
         D -->|top-k chunks + scores| F[Prompt builder<br/>level, language, citations]
-        F --> G[Gemini 2.5 Flash]
+        F --> G[Gemini 3.5 Flash-Lite]
         G --> H[Streamed answer + sources]
     end
 ```
@@ -163,7 +163,7 @@ All settings can be changed in `.env`:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Model that writes the answers |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Model that writes the answers |
 | `GEMINI_EMBED_MODEL` | `gemini-embedding-001` | Embedding model |
 | `EMBED_DIM` | `768` | Embedding size (768, 1536 or 3072). Delete `chroma_db/` after changing it. |
 | `CHUNK_SIZE` / `CHUNK_OVERLAP` | `900` / `150` | Chunk length and overlap in characters |

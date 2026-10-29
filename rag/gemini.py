@@ -1,5 +1,6 @@
 """Thin wrappers around the Google Gemini API: embeddings and text generation."""
 
+import re
 import time
 from typing import Iterator
 
@@ -8,16 +9,25 @@ from google import genai
 from google.genai import errors, types
 
 
-def _with_retry(fn, attempts: int = 4):
-    """Retry on rate limits (HTTP 429) and temporary server errors, with backoff."""
+def _retry_delay(exc: errors.APIError, attempt: int) -> float:
+    """Seconds to wait: the delay the API asks for on a 429 (e.g. "retry in 51s"), else backoff."""
+    match = re.search(r"retry in ([\d.]+)s|retryDelay': '(\d+)s", str(exc))
+    if match:
+        return min(float(match.group(1) or match.group(2)) + 2, 120)
+    return 2 ** attempt * 2
+
+
+def _with_retry(fn, attempts: int = 6):
+    """Retry on rate limits (HTTP 429) and temporary server errors."""
     for attempt in range(attempts):
         try:
             return fn()
         except errors.APIError as exc:
             retryable = exc.code in (429, 500, 503)
-            if not retryable or attempt == attempts - 1:
+            # A daily quota will not recover by waiting a minute
+            if not retryable or attempt == attempts - 1 or "PerDay" in str(exc):
                 raise
-            time.sleep(2 ** attempt * 2)
+            time.sleep(_retry_delay(exc, attempt))
 
 
 class GeminiEmbedder:
@@ -29,6 +39,7 @@ class GeminiEmbedder:
         self.client = client
         self.model = model
         self.dim = dim
+        self._query_cache: dict[str, list[float]] = {}
 
     def _embed(self, texts: list[str], task_type: str) -> list[list[float]]:
         vectors: list[list[float]] = []
@@ -49,7 +60,10 @@ class GeminiEmbedder:
         return self._embed(texts, "RETRIEVAL_DOCUMENT")
 
     def embed_query(self, text: str) -> list[float]:
-        return self._embed([text], "RETRIEVAL_QUERY")[0]
+        # The same question is often searched more than once; embedding it again wastes quota
+        if text not in self._query_cache:
+            self._query_cache[text] = self._embed([text], "RETRIEVAL_QUERY")[0]
+        return self._query_cache[text]
 
 
 class GeminiChat:
@@ -79,7 +93,17 @@ class GeminiChat:
     def stream(self, prompt: str, system: str, history: list[dict] | None = None,
                temperature: float = 0.3) -> Iterator[str]:
         config = types.GenerateContentConfig(system_instruction=system, temperature=temperature)
-        for part in self.client.models.generate_content_stream(
-                model=self.model, contents=self._contents(prompt, history), config=config):
+
+        def start():
+            # Rate-limit errors surface on the first chunk, so retry until it arrives
+            parts = iter(self.client.models.generate_content_stream(
+                model=self.model, contents=self._contents(prompt, history), config=config))
+            return next(parts, None), parts
+
+        first, rest = _with_retry(start)
+        for part in ([first] if first is not None else []):
+            if part.text:
+                yield part.text
+        for part in rest:
             if part.text:
                 yield part.text
