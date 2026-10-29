@@ -49,7 +49,8 @@ class ScriptedChat:
             yield "Use the Dativ after mit."
 
     def generate(self, prompt, system, temperature=0.3, json_schema=None):
-        return json.dumps({"claims": [{"claim": "mit takes the Dativ", "supported": True},
+        return json.dumps({"correctness": "correct", "level_fit": "suitable", "reason": "Matches the reference.",
+                           "claims": [{"claim": "mit takes the Dativ", "supported": True},
                                       {"claim": "Ich fahre mit dem Bus.", "supported": False}],
                            "citations": [{"passage": 1, "sentence": "Use the Dativ after mit", "supported": True},
                                          {"passage": 9, "sentence": "Example", "supported": True}]})
@@ -118,14 +119,29 @@ def test_run_judge_sheets_and_score():
         assert by_key[("OOS-01", "C4")]["abstained"] and not by_key[("OOS-01", "C3")]["abstained"]
 
         judgments_path = results / "judgments.jsonl"
-        n = judge.run_judge(ScriptedChat(), answers, judgments_path, log=lambda *_: None)
-        assert n == 6, "only in-scope answers of C2-C4 are judged"
-        j = common.read_jsonl(judgments_path)[0]
-        assert j["faithfulness"] == 0.5
-        assert j["citation_precision"] == 0.5, "a citation to a passage that does not exist is unsupported"
-        assert judge.write_check_sample(answers, common.read_jsonl(judgments_path), results / "sample.csv") >= 1
-
         references = {q["id"]: q["reference"] for q in questions}
+        n = judge.run_judge(ScriptedChat(), answers, references, judgments_path, log=lambda *_: None)
+        assert n == 8, "every in-scope answer is judged, closed-book included"
+        judged = {(j["id"], j["config"]): j for j in common.read_jsonl(judgments_path)}
+        closed, grounded = judged[("CAS-04", "C1")], judged[("CAS-04", "C2")]
+        assert closed["correctness"] == "correct" and closed["faithfulness"] is None, "no passages, no faithfulness"
+        assert grounded["faithfulness"] == 0.5
+        assert grounded["citation_precision"] == 0.5, "a citation to a passage that does not exist is unsupported"
+        assert judge.write_check_sample(answers, list(judged.values()), results / "sample.csv") >= 1
+
+        # Judge labels and the teacher spot-check
+        labels = score.judge_labels(list(judged.values()))
+        sheets.make_spotcheck(answers, references, results, n=4)
+        with (results / "spotcheck_teacher.csv").open(newline="", encoding="utf-8-sig") as f:
+            spot = list(csv.DictReader(f))
+        for r in spot:
+            r["correctness"], r["level_fit"] = "correct", "suitable"
+        with (results / "spotcheck_teacher.csv").open("w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=sheets.SHEET_COLUMNS)
+            writer.writeheader()
+            writer.writerows(spot)
+        agreement = score.spotcheck_agreement(results, labels)
+        assert agreement["correctness"]["n"] == 4 and agreement["correctness"]["agreement"] == 1.0
         sheets.make_sheets(answers, references, results)
         with (results / "ratings_rater1.csv").open(newline="", encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))

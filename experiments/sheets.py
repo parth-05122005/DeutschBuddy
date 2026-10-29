@@ -45,16 +45,44 @@ def make_sheets(answers: list[dict], references: dict[str, str], out_dir: Path, 
     return paths
 
 
+def make_spotcheck(answers: list[dict], references: dict[str, str], out_dir: Path, n: int = 50,
+                   seed: int = SEED) -> Path:
+    """A blind random sample of in-scope answers for a teacher to rate, to measure how well the
+    LLM judge agrees with a human. Writes spotcheck_teacher.csv and spotcheck_key.csv."""
+    pool = sorted((r for r in answers if r["in_scope"]), key=lambda r: (r["id"], r["config"]))
+    sample = random.Random(seed).sample(pool, k=min(n, len(pool)))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with (out_dir / "spotcheck_key.csv").open("w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(["item_id", "id", "config"])
+        for k, r in enumerate(sample, start=1):
+            writer.writerow([f"S{k:02d}", r["id"], r["config"]])
+    path = out_dir / "spotcheck_teacher.csv"
+    with path.open("w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=SHEET_COLUMNS)
+        writer.writeheader()
+        for k, r in enumerate(sample, start=1):
+            writer.writerow({"item_id": f"S{k:02d}", "level": r["level"], "question": r["question"],
+                             "reference_answer": references[r["id"]], "answer": r["answer"],
+                             "correctness": "", "level_fit": "", "comment": ""})
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--answers", type=Path, default=RESULTS_DIR / "answers.jsonl")
     parser.add_argument("--out-dir", type=Path, default=RESULTS_DIR)
     parser.add_argument("--raters", type=int, default=2)
+    parser.add_argument("--spotcheck", type=int, metavar="N",
+                        help="instead of full rating sheets, write a blind sample of N answers for a teacher")
     args = parser.parse_args()
 
     references = {q["id"]: q["reference"] for q in load_benchmark()}
-    paths = make_sheets(read_jsonl(args.answers), references, args.out_dir, args.raters)
-    for p in paths:
+    answers = read_jsonl(args.answers)
+    if args.spotcheck:
+        print(f"Wrote {make_spotcheck(answers, references, args.out_dir, args.spotcheck)}")
+        return
+    for p in make_sheets(answers, references, args.out_dir, args.raters):
         print(f"Wrote {p}")
 
 

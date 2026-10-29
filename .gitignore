@@ -4,3 +4,7 @@ chroma_db/
 __pycache__/
 *.pyc
 node_modules/
+experiments/results/*log*.txt
+experiments/results/discarded_*
+*.docx
+experiments/results/spotcheck_key.csv

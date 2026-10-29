@@ -82,6 +82,30 @@ def load_ratings(results: Path) -> tuple[dict, dict]:
     return labels, stats
 
 
+def judge_labels(judgments: list[dict]) -> dict:
+    """Correctness and level fit as rated by the LLM judge."""
+    return {(j["id"], j["config"]): {"correctness": normalise(j.get("correctness", ""), CORRECTNESS),
+                                     "level_fit": normalise(j.get("level_fit", ""), LEVEL_FIT)}
+            for j in judgments}
+
+
+def spotcheck_agreement(results: Path, labels: dict) -> dict:
+    """Agreement between the judge and a teacher on the blind spot-check sample, if it is filled in."""
+    key_path, sheet = results / "spotcheck_key.csv", read_sheet(results / "spotcheck_teacher.csv")
+    if not key_path.exists() or not sheet:
+        return {}
+    with key_path.open(newline="", encoding="utf-8-sig") as f:
+        key = {row["item_id"]: (row["id"], row["config"]) for row in csv.DictReader(f)}
+    stats = {}
+    for field, mapping in (("correctness", CORRECTNESS), ("level_fit", LEVEL_FIT)):
+        pairs = [(normalise(sheet[i][field], mapping), labels.get(pair, {}).get(field))
+                 for i, pair in key.items() if i in sheet]
+        pairs = [(h, j) for h, j in pairs if h and j]
+        stats[field] = {"n": len(pairs), "kappa": cohen_kappa([h for h, _ in pairs], [j for _, j in pairs]),
+                        "agreement": sum(h == j for h, j in pairs) / len(pairs) if pairs else None}
+    return stats
+
+
 # ---------- Tables ----------
 
 def pct(values: list[bool]) -> str:
@@ -116,8 +140,18 @@ def build_tables(answers: list[dict], judgments: list[dict], labels: dict, stats
                    f"{avg([j['citation_precision'] for j in js]) if c != 'C1' else '–'} | "
                    f"{pct([x == 'suitable' for x in fit])} | {avg([r['latency_first_s'] for r in rows])} |")
     k = stats.get("correctness", {}), stats.get("level_fit", {})
-    out += ["", f"Inter-rater agreement: correctness κ = {fmt(k[0].get('kappa'))} (n = {k[0].get('n', 0)}), "
-                f"level fit κ = {fmt(k[1].get('kappa'))} (n = {k[1].get('n', 0)}).", ""]
+    if stats.get("source") == "judge":
+        line = "Correctness and level fit rated by the LLM judge."
+        if k[0].get("n"):
+            line += (f" Judge–teacher agreement on {k[0]['n']} spot-checked answers: correctness "
+                     f"κ = {fmt(k[0]['kappa'])} ({100 * k[0]['agreement']:.0f}% identical), level fit "
+                     f"κ = {fmt(k[1].get('kappa'))} ({100 * (k[1].get('agreement') or 0):.0f}% identical).")
+        else:
+            line += " Teacher spot-check not filled in yet."
+        out += ["", line, ""]
+    else:
+        out += ["", f"Inter-rater agreement: correctness κ = {fmt(k[0].get('kappa'))} (n = {k[0].get('n', 0)}), "
+                    f"level fit κ = {fmt(k[1].get('kappa'))} (n = {k[1].get('n', 0)}).", ""]
 
     # McNemar tests on 'fully correct' between neighbouring configurations
     out += ["### Paired tests (fully correct, McNemar exact)", "", "| Comparison | b | c | p |", "| --- | --- | --- | --- |"]
@@ -180,7 +214,14 @@ def main():
 
     answers = read_jsonl(args.results / "answers.jsonl")
     judgments = read_jsonl(args.results / "judgments.jsonl")
-    labels, stats = load_ratings(args.results) if (args.results / "rating_key.csv").exists() else ({}, {})
+    human = (args.results / "rating_key.csv").exists() and (args.results / "ratings_rater1.csv").exists()
+    if human and any(read_sheet(args.results / "ratings_rater1.csv")[i]["correctness"]
+                     for i in read_sheet(args.results / "ratings_rater1.csv")):
+        labels, stats = load_ratings(args.results)
+    else:
+        # No human ratings: use the LLM judge, validated against the teacher's spot-check
+        labels = judge_labels(judgments)
+        stats = {"source": "judge", **spotcheck_agreement(args.results, labels)}
     tables = build_tables(answers, judgments, labels, stats)
     (args.results / "tables.md").write_text(tables, encoding="utf-8")
     print(tables)

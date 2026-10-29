@@ -63,13 +63,19 @@ def run_experiments(engine, questions: list[dict], configs: list[str], out_path:
     done = {(r["id"], r["config"]) for r in read_jsonl(out_path)}
     todo = [(q, c) for q in questions for c in configs if (q["id"], c) not in done]
     log(f"{len(done)} answers already saved, {len(todo)} to go")
+    failures_in_a_row = 0
     for i, (question, config_id) in enumerate(todo, start=1):
         try:
             record = answer_one(engine, question, config_id)
+            failures_in_a_row = 0
         except Exception as exc:  # keep going; the pair is retried on the next run
             log(f"[{i}/{len(todo)}] {question['id']} {config_id} FAILED: {str(exc)[:300]}")
+            failures_in_a_row += 1
             if "PerDay" in str(exc):
                 log("Daily quota reached. Run the same command again tomorrow to continue.")
+                break
+            if failures_in_a_row >= 5:
+                log("5 failures in a row (network down?). Stopping; run again to continue.")
                 break
             continue
         append_jsonl(out_path, record)
