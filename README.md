@@ -112,6 +112,51 @@ The app opens at http://localhost:8501. The first start takes about a minute bec
 python tests/test_pipeline.py
 ```
 
+## Experiments: the DaF-GQA benchmark
+
+The conference paper compares four configurations on 180 German grammar questions in [benchmark/dafgqa.jsonl](benchmark/dafgqa.jsonl):
+
+| ID | Configuration | Retrieved passages | CEFR level instruction | Abstention rule |
+|---|---|---|---|---|
+| C1 | Closed-book | No | No | No |
+| C2 | RAG | Yes | No | No |
+| C3 | RAG + level | Yes | Yes | No |
+| C4 | RAG + level + abstain | Yes | Yes | Yes |
+
+Each benchmark line holds the question, its topic, CEFR level (A1/A2/B1), language (en/de/mixed), the gold knowledge-base heading(s) as `file.md#Heading`, and a reference answer. 160 questions are in scope; 20 cover topics the knowledge base does not contain (Konjunktiv II, passive, relative clauses, reflexive verbs, n-declension).
+
+**Before running:** have a German teacher check the reference answers in the benchmark file.
+
+Run the steps in order (each one can be stopped and restarted; finished work is skipped):
+
+1. Generate 720 answers (180 questions × 4 configurations). `--delay` keeps within the free-tier rate limit; a full run takes about 1.5 hours.
+
+   ```bash
+   python experiments/run.py --delay 7
+   ```
+
+   Try it on a few questions first with `--ids CAS-04 TNS-05 OOS-01`.
+
+2. Judge faithfulness and citation precision with an LLM, and create `judge_check_sample.csv` for a human to verify 20% of the verdicts.
+
+   ```bash
+   python experiments/judge.py --delay 7
+   ```
+
+3. Create the blind rating sheets for the two raters. Each rater fills `correctness` (correct / partly / incorrect) and `level_fit` (suitable / too_difficult / too_simple) in their own CSV. Keep `rating_key.csv` away from the raters.
+
+   ```bash
+   python experiments/sheets.py
+   ```
+
+4. After rating, put the agreed labels for disagreements in `ratings_final.csv` (same columns), then compute every table of the paper into `experiments/results/tables.md`:
+
+   ```bash
+   python experiments/score.py
+   ```
+
+All outputs go to `experiments/results/`. The tests in `tests/test_experiments.py` check the benchmark (180 questions, Table I counts, every gold heading exists in the knowledge base) and every script with a fake model.
+
 ## Configuration
 
 All settings can be changed in `.env`:

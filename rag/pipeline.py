@@ -72,16 +72,26 @@ class DeutschBuddy:
     # ---------- Features ----------
 
     def ask(self, question: str, history: list[dict] | None = None, level: str = "A2",
-            language: str = "English", categories: list[str] | None = None) -> tuple[list[SearchHit], Iterator[str]]:
-        """Answer a question. Returns the sources first, then a token stream of the answer."""
-        # Follow-up questions like "and in the Dativ?" need the previous question to retrieve well
-        last_user = next((t["content"] for t in reversed(history or []) if t["role"] == "user"), "")
-        search_query = f"{last_user}\n{question}" if last_user and len(question) < 60 else question
-        hits = self.retrieve(search_query, categories=categories)
+            language: str = "English", categories: list[str] | None = None, use_retrieval: bool = True,
+            level_control: bool = True, abstain: bool = True,
+            temperature: float = 0.3) -> tuple[list[SearchHit], Iterator[str]]:
+        """Answer a question. Returns the sources first, then a token stream of the answer.
 
-        system = prompts.TUTOR_SYSTEM.format(level=level, language=language)
-        prompt = prompts.TUTOR_PROMPT.format(context=self.format_context(hits), question=question)
-        return hits, self.chat.stream(prompt, system, history=history)
+        With use_retrieval=False the model answers closed-book (no passages in the prompt).
+        """
+        hits: list[SearchHit] = []
+        if use_retrieval:
+            # Follow-up questions like "and in the Dativ?" need the previous question to retrieve well
+            last_user = next((t["content"] for t in reversed(history or []) if t["role"] == "user"), "")
+            search_query = f"{last_user}\n{question}" if last_user and len(question) < 60 else question
+            hits = self.retrieve(search_query, categories=categories)
+            prompt = prompts.TUTOR_PROMPT.format(context=self.format_context(hits), question=question)
+        else:
+            prompt = prompts.CLOSED_BOOK_PROMPT.format(question=question)
+
+        system = prompts.tutor_system(level, language, grounded=use_retrieval,
+                                      level_control=level_control, abstain=abstain)
+        return hits, self.chat.stream(prompt, system, history=history, temperature=temperature)
 
     def make_quiz(self, topic: str, n: int = 5, level: str = "A2",
                   categories: list[str] | None = None) -> tuple[list[dict], list[SearchHit]]:

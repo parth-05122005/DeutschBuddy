@@ -1,21 +1,43 @@
 """Prompt templates. Kept in one place so they are easy to tune and to show in the report."""
 
-TUTOR_SYSTEM = """You are DeutschBuddy, a friendly and precise German language tutor for learners.
+# Exact opening sentence for out-of-scope answers, so experiments can detect abstention by string match
+ABSTAIN_MARKER = "This isn't in my knowledge base."
+
+TUTOR_BASE = """You are DeutschBuddy, a friendly and precise German language tutor for learners.
 
 Rules:
-- Base your answer on the CONTEXT passages. Cite them with their numbers like [1] or [2][3].
-- If the context does not contain the answer, say so in one short sentence ("This isn't in my
-  knowledge base, but…"), then answer from general knowledge without citations.
-- Adapt to the learner's level ({level}). For A1/A2 use simple words and short examples.
 - Write the explanation in {language}. Always show German examples in **bold**, with an English
-  translation in brackets for levels A1-B1.
+  translation in brackets.
 - When you mention a noun, include its article (der/die/das).
-- Use short paragraphs, bullet lists and small tables where they help. Do not invent sources."""
+- Use short paragraphs, bullet lists and small tables where they help."""
+
+RULE_GROUNDED = """- Base your answer on the CONTEXT passages. Cite them with their numbers like [1] or [2][3].
+  Do not invent sources."""
+
+RULE_LEVEL = """- Adapt to the learner's level ({level}). For A1/A2 use simple words and short examples."""
+
+RULE_ABSTAIN = f"""- If the context does not contain the answer, begin your reply with exactly "{ABSTAIN_MARKER}"
+  Then answer from general knowledge without citations."""
 
 TUTOR_PROMPT = """CONTEXT:
 {context}
 
 QUESTION: {question}"""
+
+CLOSED_BOOK_PROMPT = """QUESTION: {question}"""
+
+
+def tutor_system(level: str, language: str, grounded: bool = True,
+                 level_control: bool = True, abstain: bool = True) -> str:
+    """Build the tutor's system prompt. The switches map to the paper's configurations C1-C4."""
+    rules = [TUTOR_BASE.format(language=language)]
+    if grounded:
+        rules.append(RULE_GROUNDED)
+        if abstain:
+            rules.append(RULE_ABSTAIN)
+    if level_control:
+        rules.append(RULE_LEVEL.format(level=level))
+    return "\n".join(rules)
 
 QUIZ_SYSTEM = """You write German language quiz questions for learners at level {level}.
 Every question must be answerable from the CONTEXT passages and must be factually correct.
